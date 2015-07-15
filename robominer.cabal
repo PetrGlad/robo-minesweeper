@@ -10,7 +10,7 @@ maintainer: PetrGlad@gmail.com
 
 executable robominer
   main-is: Main.hs
-  hs-source-dirs: src/
+  hs-source-dirs: src
   default-language: Haskell2010
   build-depends:
     base,
@@ -20,6 +20,10 @@ executable robominer
     multimap,
     multiset,
     containers
+-- https://hackage.haskell.org/package/GHood
+-- https://hackage.haskell.org/package/hood-0.2.1/docs/Debug-Hood-Observe.html
+-- https://hackage.haskell.org/package/GHood
+--     hood
 --    text
 
 

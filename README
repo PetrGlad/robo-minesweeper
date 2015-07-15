@@ -1,6 +1,0 @@
-Robominer
-
-  Program that automatically plays Minesweeper game
-  (see https://en.wikipedia.org/wiki/Minesweeper_(video_game)).
-
-  In ambiguous situations algorithm attempts to minimize risk.
