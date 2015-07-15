@@ -1,0 +1,25 @@
+cabal-version: >= 1.10
+name: robominer 
+synopsis:
+  Algorithm that plays Minesweeper
+version: 0.0.1
+build-type: Simple
+license-file: LICENSE
+author: Petr Gladkikh
+maintainer: PetrGlad@gmail.com
+
+executable robominer
+  main-is: Main.hs
+  hs-source-dirs: src/
+  default-language: Haskell2010
+  build-depends:
+    base,
+    random,
+    MonadRandom,
+    ansi-terminal,
+    multimap,
+    multiset,
+    containers
+--    text
+
+
