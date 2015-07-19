@@ -210,12 +210,24 @@ choiceCount n k = choiceCount (n-1) (k-1) * n `div` k
 
 -- TODO Tests
 
--- Tests
--- 7x6
--- "001###@
--- 013@@@#
--- 02@@###
--- 13@####
--- #@2#@##
--- #######"
+parseMines :: [String] -> Mines
+parseMines strings = parseLines strings 0 S.empty
+  where
+    parseLines :: [String] -> Int -> Mines -> Mines
+    parseLines [] _row mines = mines
+    parseLines (l:ls) row mines =
+      parseLines ls (row + 1) (S.union mines (S.fromList (L.concat (zipWith charToMine l [0..]))))
+      where charToMine c col =
+              case c of
+                '@' -> [(col, row)]
+                _ -> []
+
+testData0 :: Mines
+testData0 = parseMines
+    ["######@",
+     "###@@@#",
+     "##@@###",
+     "##@####",
+     "#@##@##",
+     "#######"]
 -- > Actual: Tripped on mine at (1,4). Expected: Could be safely probing (3,0)
