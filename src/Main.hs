@@ -10,12 +10,9 @@ import qualified Control.Monad.Random as CMR
 
 import Data.Map (Map)
 import qualified Data.Map as M
-import qualified Data.MultiMap as Mm
-import qualified Data.MultiSet as Ms
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.List as L
-import qualified Data.Tuple as Tu
 import qualified Control.Monad as Cm
 -- import Data.Sequence
 
@@ -34,7 +31,7 @@ genMine (maxX, maxY) = do
 
 genMines :: Size -> Int -> IO Mines
 genMines size cnt = do
-      mines <- CMR.evalRandIO $ sequence $ replicate cnt  $ genMine size
+      mines <- CMR.evalRandIO $ Cm.replicateM cnt  $ genMine size
       return $ S.fromList mines
 
 genField :: Size -> Field
@@ -97,7 +94,7 @@ gameStep fieldSize mines field =
   let intel = filterLayer (genIntel mines) field
       minesCount = S.size mines
       ------------------------------------------
-      probePoss = (chooseProbePosition fieldSize field intel)
+      probePoss = (chooseProbePosition fieldSize minesCount field intel)
       newField = Cm.foldM (step mines) field probePoss
 
       showFinalStatus message = do

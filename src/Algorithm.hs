@@ -12,23 +12,18 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.List as L
 import qualified Data.Tuple as Tu
-import qualified Control.Monad as Cm
+-- import qualified Control.Monad as Cm
 -- import Data.Sequence
 
-
-chooseProbePosition :: Size -> Field -> Intel -> [Pos]
-chooseProbePosition fieldSize field intel = probePoss
+chooseProbePosition :: Size -> Int -> Field -> Intel -> [Pos]
+chooseProbePosition fieldSize _minesCount field intel = probePoss
   where
     -- Fallback implementation
-    unknowns = M.toList $ M.filter (CUnknown==) field
-    choice0 = head $ fmap fst unknowns
+    -- unknowns = M.toList $ M.filter (CUnknown==) field
+    -- choice0 = head $ fmap fst unknowns
 
-    -- TODO Implement
     intelRel = intelMatrix fieldSize (enumPositions fieldSize)
-    edgeMinesMatrix = discoverableMinesMatrix (visibleIntelMatrix intelRel field) field
-    neighbourToMine = groupBySecond edgeMinesMatrix
-    mineToNeighbour = groupByFirst edgeMinesMatrix
-
+    -- edgeMinesMatrix = discoverableMinesMatrix (visibleIntelMatrix intelRel field) field
 
     viMatrix = (visibleIntelMatrix intelRel field)
 --     putStrLn $ show $ viMatrix
@@ -44,8 +39,8 @@ chooseProbePosition fieldSize field intel = probePoss
     -- If probability of mine on "inner" unexplored cell is less than on the edge then choose one such
     -- cell randomly.
     -- Choose "step into unknown" position:
-    unknownMargin = Mm.keysSet (groupByFirst edgeRelations)
-    farField = S.toList $ M.keysSet $ M.filterWithKey (\p c -> (c == CUnknown) && (not $ S.member p unknownMargin)) field
+--     unknownMargin = Mm.keysSet (groupByFirst edgeRelations)
+--     farField = S.toList $ M.keysSet $ M.filterWithKey (\p c -> (c == CUnknown) && (not $ S.member p unknownMargin)) field
 --     farPoss = case farField of
 --                         [] -> []
 --                         (x:_xs) -> [(x, fromIntegral minesCount -- FIXME - here should be number of remaining mines
