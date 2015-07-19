@@ -26,11 +26,8 @@ chooseProbePosition fieldSize _minesCount field intel = probePoss
     -- edgeMinesMatrix = discoverableMinesMatrix (visibleIntelMatrix intelRel field) field
 
     viMatrix = (visibleIntelMatrix intelRel field)
---     putStrLn $ show $ viMatrix
     edgeRelations = discoverableMinesMatrix viMatrix field -- "Edge" between explored and unknown cells
---     putStrLn $ show $ edgeRelations
     combos = consistentCombinations edgeRelations intel
---     putStrLn $ show $ combos
 
     -- TODO Implement mask with found mines for optimization and estimation remaining mine count in heuristics.
     -- TODO Implement 0 intel shortcut - do not do full analysis on them (can we make it part of generic algorithm?)
@@ -39,25 +36,22 @@ chooseProbePosition fieldSize _minesCount field intel = probePoss
     -- If probability of mine on "inner" unexplored cell is less than on the edge then choose one such
     -- cell randomly.
     -- Choose "step into unknown" position:
---     unknownMargin = Mm.keysSet (groupByFirst edgeRelations)
---     farField = S.toList $ M.keysSet $ M.filterWithKey (\p c -> (c == CUnknown) && (not $ S.member p unknownMargin)) field
---     farPoss = case farField of
---                         [] -> []
---                         (x:_xs) -> [(x, fromIntegral minesCount -- FIXME - here should be number of remaining mines
---                          / (fromIntegral $ L.length farField))]
-
+    -- unknownMargin = Mm.keysSet (groupByFirst edgeRelations)
+    -- farField = S.toList $ M.keysSet $ M.filterWithKey (\p c -> (c == CUnknown) && (not $ S.member p unknownMargin)) field
+    -- farPoss = case farField of
+    --             [] -> []
+    --             (x:_xs) -> [(x, fromIntegral minesCount -- FIXME - here should be number of remaining mines
+    --                         / (fromIntegral $ L.length farField))]
 
     freqGroups = Mm.toMap $ Mm.fromList $ fmap (\(p,t) -> (p, boolTo01 t))
                      $ L.concat $ fmap M.toList combos
 
     -- freqs :: [(Pos, Float)]
     freqs = L.sortBy (\(_p1,f1) (_p2,f2) -> compare f1 f2)
-                $ L.concat [
-                    (M.toList
-                       $ M.map (\cs -> ((fromIntegral (sum cs))::Float) / (fromIntegral (L.length combos)))
-                       freqGroups)
-                    -- TODO Implement , farPoss
-                    ]
+                $ (M.toList
+                                         $ M.map (\cs -> ((fromIntegral (sum cs))::Float) / (fromIntegral (L.length combos)))
+                                         freqGroups)
+                -- L.concat [ otherFreqs , farPoss ] -- TODO Implement
 
     -- noMines are sure steps so we'll do them in batch.
     noMines = takeWhile ((0==) . snd) freqs
@@ -121,82 +115,83 @@ boolTo01 x = case x of
               True -> 1
               False -> 0
 
--- Find some mine combinations that are consistent with known Intel
+-- (Optimization: Likely connectedSets could be implicitly calculated in constrainedCombos - but that would complicate code)
+connectedSets :: Mm.MultiMap Pos Pos -> (Pos -> Set Pos) -> [Set Pos]
+connectedSets neighbourToMine linkedNeighbours =
+  split (S.toList (M.keysSet (Mm.toMap neighbourToMine))) []
+  where
+    split :: [Pos] -> [Set Pos] -> [Set Pos]
+    split [] sets = sets
+    split (n : ns) sets =
+      let related = getConnected (S.singleton n)
+          unrelated = L.filter (\x -> not (S.member x related)) ns
+      in split unrelated (related : sets)
+
+    getConnected :: Set Pos -> Set Pos
+    getConnected s =
+      let newSet = S.unions $ fmap linkedNeighbours (S.toList s)
+      in if (S.size newSet) == (S.size s)
+           then s
+           else getConnected newSet
+
+constrainedCombos :: Intel -> (Pos -> [Pos]) -> MineLayout -> [Pos] -> [MineLayout]
+-- Seed testPositions with single item list. testPositions - neigbours to be satisfied by intel
+constrainedCombos _intel _linkedMinePoss currentLayout [] = [currentLayout]
+constrainedCombos intel linkedMinePoss currentLayout (testPos : tps) =
+    -- Generate only combinations that are consistent in this position.
+    if isFeasible
+      then map (\c -> M.union currentLayout c)
+               (concatMap testCombo tpLayouts)
+      else []
+    where
+      tpIntel = getIntel intel testPos
+      -- Find related mine positions that are already in layout by splitting into (taken, available)
+      takenAndAvailable = L.partition (\p -> M.member p currentLayout) (linkedMinePoss testPos)
+      takenMps = (fst takenAndAvailable)
+      availableMps = (snd takenAndAvailable)
+      takenCount = L.foldl (\s x -> s +
+                              (boolTo01 (M.findWithDefault False x currentLayout)))
+                           0 takenMps
+      isFeasible = (tpIntel - takenCount) <= (L.length availableMps)
+      tpCombinations :: [[Pos]]
+      tpCombinations = combinations (tpIntel - takenCount) availableMps
+      -- Convert combination of present mines to mine layout:
+      tpLayouts :: [MineLayout]
+      tpLayouts = map
+        (\tpc -> M.fromList $ fmap (\x -> (x, L.elem x tpc)) availableMps)
+        tpCombinations
+
+      -- In case of cycle we should just get empty combo and move on
+      -- Recursive call returning some consistent layout:
+      testCombo :: MineLayout -> [MineLayout]
+      testCombo posLayout =
+        constrainedCombos intel linkedMinePoss (M.union currentLayout posLayout) tps
+
+-- Find mine combinations that are consistent with known Intel
 -- (Map Neighbour [Mine positions]) -> intel -> consistent mine placements
 -- (XXX The algorithm in connectedSets can be optimized for speed)
 consistentCombinations :: [CellPair] -> Intel -> [MineLayout]
 consistentCombinations edgeRelations intel =
-  concatMap (\ns -> constrainedCombos M.empty (S.toList ns)) connectedSets
+  concatMap (\ns -> constrainedCombos intel linkedMinePoss M.empty (S.toList ns))
+            (connectedSets neighbourToMine linkedNeighbours)
   where
     neighbourToMine = groupBySecond $ edgeRelations
     mineToNeighbour = groupByFirst $ edgeRelations
 
-    -- (Map MinePosition [Neighbours]) -> Neighbour/intel cell -> list of other Neighbour/intel cells affected
-    getLinkedNeighbours :: Pos -> [Pos]
-    getLinkedNeighbours pos = Mm.lookup pos mineToNeighbour
-
     linkedMinePoss p = (Mm.lookup p neighbourToMine)
+
+    -- Neighbours that share common mine places with this one
     linkedNeighbours p = S.fromList $ concatMap getLinkedNeighbours (linkedMinePoss p)
-
-    -- (Likely connectedSets could be implicitly calculated in constrainedCombos - but that would complicate code)
-    connectedSets :: [Set Pos]
-    connectedSets = split (S.toList (M.keysSet (Mm.toMap neighbourToMine))) []
-      where
-        split :: [Pos] -> [Set Pos] -> [Set Pos]
-        split [] sets = sets
-        split (n : ns) sets =
-          let related = getConnected (S.singleton n)
-              unrelated = L.filter (\x -> not (S.member x related)) ns
-          in split unrelated (related : sets)
-
-        getConnected :: Set Pos -> Set Pos
-        getConnected s =
-          let newSet = S.unions $ fmap linkedNeighbours (S.toList s)
-          in if (S.size newSet) == (S.size s)
-               then s
-               else getConnected newSet
-
-    -- (A) -- 1. List of linked neighbours.
-    -- -- 2. Key set of accumulated MineLayout - to see which positions are already taken while generating new layouts.
-    -- -- 3. neighbourToMine - to generate consistent layouts together with 2.
-    constrainedCombos :: MineLayout -> [Pos] -> [MineLayout]
-    -- Seed testPositions with single item list. testPositions - neigbours to be satisfied by intel
-    constrainedCombos currentLayout [] = [currentLayout]
-    constrainedCombos currentLayout (testPos : tps) =
-        -- Generate only combinations that are consistent in this position.
-        if isFeasible
-          then map (\c -> M.union currentLayout c)
-                   (concatMap testCombo tpLayouts)
-          else []
-        where
-          tpIntel = getIntel intel testPos
-          -- Find related mine positions that are already in layout by splitting into (taken, available)
-          lmp = L.partition (\p -> M.member p currentLayout) (linkedMinePoss testPos)
-          takenMps = (fst lmp)
-          availableMps = (snd lmp)
-          takenCount = L.foldl (\s x -> s +
-                                  (boolTo01 (M.findWithDefault False x currentLayout)))
-                               0
-                               takenMps
-          isFeasible = (tpIntel - takenCount) <= (L.length availableMps)
-          tpCombinations :: [[Pos]]
-          tpCombinations = combinations (tpIntel - takenCount) availableMps
-          -- Convert combination of present mines to mine layout:
-          tpLayouts :: [MineLayout]
-          tpLayouts = map
-            (\tpc -> M.fromList $ fmap (\x -> (x, L.elem x tpc)) availableMps)
-            tpCombinations
-
-          -- In case of cycle we should just get empty combo and move on
-          -- Recursive call returning some consistent layout:
-          testCombo :: MineLayout -> [MineLayout]
-          testCombo posLayout = constrainedCombos (M.union currentLayout posLayout) tps
+       where
+         -- (Map MinePosition [Neighbours]) -> Neighbour/intel cell -> list of other Neighbour/intel cells affected
+         getLinkedNeighbours :: Pos -> [Pos]
+         getLinkedNeighbours pos = Mm.lookup pos mineToNeighbour
 
 -- permutations n = sequence . replicate n
 frequencies :: Ord a => [a] -> [(a, Int)]
 frequencies = Ms.toOccurList . Ms.fromList
 
--- http://stackoverflow.com/a/22577148/117220
+-- Combinations of k from xs (based on http://stackoverflow.com/a/22577148/117220)
 combinations :: Int -> [a] -> [[a]]
 combinations k xs = combinations' (length xs) k xs
   where combinations' n k' l
@@ -206,8 +201,7 @@ combinations k xs = combinations' (length xs) k xs
              [] -> []
              (y : ys) -> map (y :) (combinations' (n - 1) (k' - 1) ys) ++ combinations' (n - 1) k' ys
 
--- Binomial coefficient
--- http://stackoverflow.com/a/6806997/117220
+-- Binomial coefficient (from http://stackoverflow.com/a/6806997/117220)
 choiceCount :: Int -> Int -> Int
 choiceCount _n 0 = 1
 choiceCount 0 _k = 0
