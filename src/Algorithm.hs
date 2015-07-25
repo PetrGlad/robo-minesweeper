@@ -225,12 +225,27 @@ parseMines = S.fromList . (concatMap charToMine) . digestField
             '@' -> [pos]
             _ -> []
 
+parseField :: [String] -> Field
+parseField = M.fromList . (concatMap charToCell) . digestField
+  where
+    charToCell :: (Pos, Char) -> [(Pos, Cell)]
+    charToCell (pos, ch) =
+          case ch of
+            ' ' -> [(pos, CFree)]
+            _ -> [(pos, CUnknown)]
+
+parseIntel :: [String] -> Intel
+parseIntel = genIntel . parseMines
+
+field0 :: [String]
+field0 = ["   ###@",
+          "   @@@#",
+          "  @@###",
+          "  @####",
+          "#@ #@##",
+          "#######"]
+
 testData0 :: Mines
-testData0 = parseMines
-    ["   ###@",
-     "   @@@#",
-     "  @@###",
-     "  @####",
-     "#@ #@##",
-     "#######"]
+testData0 = parseMines field0
+
 -- > Actual: Tripped on mine at (1,4). Expected: Could be safely probing (3,0)

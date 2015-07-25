@@ -64,13 +64,6 @@ step mines field pos
   where newField :: Map Pos Cell
         newField = M.alter (const (Just CFree)) pos field
 
-genIntel :: Mines -> Intel
-genIntel mines = foldl updateNeighbours M.empty (S.toList mines)
-  where updateNeighbours intel pos = foldl (\intl nPos -> M.alter updateCount nPos intl)
-                                           intel (nearPositions pos)
-        updateCount Nothing = Just 1
-        updateCount (Just x) = Just (x + 1)
-
 moveCursorBelow :: Size -> IO ()
 moveCursorBelow boardSize = setCursorPosition (snd boardSize) 0
 

@@ -7,6 +7,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.MultiMap as Mm
 import Data.Set (Set)
+import qualified Data.Set as S
 
 type Pos = (Int, Int)
 type Size = Pos
@@ -45,3 +46,10 @@ isFreeCell field pos = (M.lookup pos field) == (Just CFree)
 
 filterLayer :: Layer a -> Field -> Layer a
 filterLayer intel field = M.filterWithKey (\pos _ -> isFreeCell field pos) intel
+
+genIntel :: Mines -> Intel
+genIntel mines = foldl updateNeighbours M.empty (S.toList mines)
+  where updateNeighbours intel pos = foldl (\intl nPos -> M.alter updateCount nPos intl)
+                                           intel (nearPositions pos)
+        updateCount Nothing = Just 1
+        updateCount (Just x) = Just (x + 1)
