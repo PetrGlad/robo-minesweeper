@@ -33,8 +33,7 @@ chooseProbePosition fieldSize _minesCount field intel = probePoss
     -- TODO Implement 0 intel shortcut - do not do full analysis on them (can we make it part of generic algorithm?)
     -- TODO Implement mines "disarm" to reduce unknown boundary (place a mark on mine and subtract this mine from intel)
 
-    -- If probability of mine on "inner" unexplored cell is less than on the edge then choose one such
-    -- cell randomly.
+    -- TODO If probability of mine on "inner" unexplored cell is less than on the edge then choose one such cell randomly.
     -- Choose "step into unknown" position:
     -- unknownMargin = Mm.keysSet (groupByFirst edgeRelations)
     -- farField = S.toList $ M.keysSet $ M.filterWithKey (\p c -> (c == CUnknown) && (not $ S.member p unknownMargin)) field
@@ -115,7 +114,7 @@ boolTo01 x = case x of
               True -> 1
               False -> 0
 
--- (Optimization: Likely connectedSets could be implicitly calculated in constrainedCombos - but that would complicate code)
+-- (TODO (?) Optimization: Likely connectedSets could be implicitly calculated in constrainedCombos - but that would complicate code)
 connectedSets :: Mm.MultiMap Pos Pos -> (Pos -> Set Pos) -> [Set Pos]
 connectedSets neighbourToMine linkedNeighbours =
   split (S.toList (M.keysSet (Mm.toMap neighbourToMine))) []
@@ -134,6 +133,7 @@ connectedSets neighbourToMine linkedNeighbours =
            then s
            else getConnected newSet
 
+-- Return list of mine combinations that satisfy intel
 constrainedCombos :: Intel -> (Pos -> [Pos]) -> MineLayout -> [Pos] -> [MineLayout]
 -- Seed testPositions with single item list. testPositions - neigbours to be satisfied by intel
 constrainedCombos _intel _linkedMinePoss currentLayout [] = [currentLayout]
@@ -191,7 +191,7 @@ consistentCombinations edgeRelations intel =
 frequencies :: Ord a => [a] -> [(a, Int)]
 frequencies = Ms.toOccurList . Ms.fromList
 
--- Combinations of k from xs (based on http://stackoverflow.com/a/22577148/117220)
+-- Return all combinations of k elements from xs (based on http://stackoverflow.com/a/22577148/117220)
 combinations :: Int -> [a] -> [[a]]
 combinations k xs = combinations' (length xs) k xs
   where combinations' n k' l
@@ -207,27 +207,30 @@ choiceCount _n 0 = 1
 choiceCount 0 _k = 0
 choiceCount n k = choiceCount (n-1) (k-1) * n `div` k
 
-
 -- TODO Tests
 
-parseMines :: [String] -> Mines
-parseMines strings = parseLines strings 0 S.empty
+digestField :: [String] -> [(Pos, Char)]
+digestField strings = concat $ parseLines 0 strings
   where
-    parseLines :: [String] -> Int -> Mines -> Mines
-    parseLines [] _row mines = mines
-    parseLines (l:ls) row mines =
-      parseLines ls (row + 1) (S.union mines (S.fromList (L.concat (zipWith charToMine l [0..]))))
-      where charToMine c col =
-              case c of
-                '@' -> [(col, row)]
-                _ -> []
+    parseLines _row [] = []
+    parseLines row (l:ls) =
+      (zipWith (\c ch -> ((c, row), ch)) [0..] l) : parseLines (row + 1) ls -- Not TR
+
+parseMines :: [String] -> Mines
+parseMines = S.fromList . (concatMap charToMine) . digestField
+  where
+    charToMine :: (Pos, Char) -> [Pos]
+    charToMine (pos, ch) =
+          case ch of
+            '@' -> [pos]
+            _ -> []
 
 testData0 :: Mines
 testData0 = parseMines
-    ["######@",
-     "###@@@#",
-     "##@@###",
-     "##@####",
-     "#@##@##",
+    ["   ###@",
+     "   @@@#",
+     "  @@###",
+     "  @####",
+     "#@ #@##",
      "#######"]
 -- > Actual: Tripped on mine at (1,4). Expected: Could be safely probing (3,0)
