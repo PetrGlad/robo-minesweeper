@@ -90,7 +90,7 @@ discoverableMinesMatrix pairs field = filter (not . (isFreeCell field) . fst) pa
 groupByFirst :: Ord a => [(a, b)] -> Mm.MultiMap a b
 groupByFirst = foldl (\mm (k,v) -> Mm.insert k v mm) Mm.empty
 
-groupBySecond :: [CellPair] -> Mm.MultiMap Pos Pos
+groupBySecond :: Ord b => [(a, b)] -> Mm.MultiMap b a
 groupBySecond = groupByFirst . (map Tu.swap)
 
 getIntel :: Intel -> Pos -> Int
