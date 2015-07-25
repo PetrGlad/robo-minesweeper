@@ -19,11 +19,12 @@ executable robominer
     ansi-terminal,
     multimap,
     multiset,
-    containers
+    containers,
 -- https://hackage.haskell.org/package/GHood
 -- https://hackage.haskell.org/package/hood-0.2.1/docs/Debug-Hood-Observe.html
 -- https://hackage.haskell.org/package/GHood
 --     hood
 --    text
+    QuickCheck
 
 

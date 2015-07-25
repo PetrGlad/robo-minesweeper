@@ -5,3 +5,6 @@ dist
 *.o
 Main
 *.log
+.*
+cabal.sandbox.config
+
