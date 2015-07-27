@@ -17,8 +17,8 @@ import qualified Data.Tuple as Tu
 
 -- import Debug.Trace
 
-chooseProbePositions :: Algorithm
-chooseProbePositions fieldSize field intel = (probePoss, minePoss)
+choosePositions :: Algorithm
+choosePositions fieldSize field intel = (probePoss, minePoss)
   where
     -- Fallback implementation
     -- unknowns = M.toList $ M.filter (CUnknown==) field

@@ -76,7 +76,7 @@ renderBoard field mines =
 step :: Size -> Mines -> Field -> IO ()
 step fieldSize mines field =
   let (probePositions, newField) =
-        gameStep fieldSize mines field chooseProbePositions
+        gameStep fieldSize mines field choosePositions
       showFinalStatus message = do
         showStatus fieldSize message
         return ()
