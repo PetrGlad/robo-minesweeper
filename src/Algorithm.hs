@@ -26,7 +26,7 @@ choosePositions fieldSize field intel =
 
 pickProbePoss :: Field -> [(Pos, Float)] -> [Pos]
 pickProbePoss field freqs = case pick of
-  [] -> [fallback]
+  [] -> fallback
   x -> x
   where
     pick = fmap fst $
@@ -53,7 +53,7 @@ pickProbePoss field freqs = case pick of
     -}
     -- XXX Fallback implementation stub
     unknowns = M.toList $ M.filter (CUnknown==) field
-    fallback = head $ S.toList $ S.difference (S.fromList (fmap fst unknowns)) (S.fromList (fmap fst freqs))
+    fallback = take 1 $ S.toList $ S.difference (S.fromList (fmap fst unknowns)) (S.fromList (fmap fst freqs))
 
 -- Return [(mine-position, probability-of-mine-there)] oredered by increasing probability
 rankProbePositions :: Size -> Field -> Intel -> [(Pos, Float)]
