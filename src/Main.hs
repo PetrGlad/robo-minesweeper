@@ -89,18 +89,20 @@ step fieldSize mines field =
     -- _ <- getChar
 
     case newField of
-      Nothing -> showFinalStatus ("Tripped on mine at " ++ (show probePositions))
+      Nothing -> showFinalStatus $ "Tripped on mine at " ++ (show probePositions)
       Just f ->
         if isGameComplete mines f
           then do
                 renderBoard f mines
                 showFinalStatus "Done"
-          else step fieldSize mines f
+          else if L.null probePositions
+            then showFinalStatus "Cannot decide on probe position"
+            else step fieldSize mines f
 
 main :: IO ()
 main =
-  let dims = (10, 5)
+  let dims = (64, 32)
   in do
     clearScreen
-    mines <- genMines dims 3
+    mines <- genMines dims 350
     step dims mines (genField dims)
