@@ -7,7 +7,7 @@ Program that automatically plays Minesweeper game
 In ambiguous situations algorithm attempts to minimize risk.
 
 TODO
-====
+----
 
 * Cleanup/streamline code
 * Write tests, cover edge cases 
@@ -16,7 +16,7 @@ TODO
   (now it produces stack overflow on (128, 64) with 1500 mines)
   
 Hints
-=====
+-----
   
 Init sandbox:  
   cabal sandbox init  
