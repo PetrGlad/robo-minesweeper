@@ -18,13 +18,24 @@ import qualified Data.Tuple as Tu
 -- import Debug.Trace
 
 choosePositions :: Algorithm
-choosePositions fieldSize field intel = (probePoss, minePoss)
+choosePositions fieldSize field intel =
+  (pickProbePoss field freqs, -- Where to probe
+   fmap fst $ filter ((1==) . snd) freqs) -- Sure mines
   where
-    -- Fallback implementation
-    -- unknowns = M.toList $ M.filter (CUnknown==) field
-    -- choice0 = head $ fmap fst unknowns
-
     freqs = rankProbePositions fieldSize field intel
+
+pickProbePoss :: Field -> [(Pos, Float)] -> [Pos]
+pickProbePoss field freqs = case pick of
+  [] -> [fallback]
+  x -> x
+  where
+    pick = fmap fst $
+      case takeWhile ((0==) . snd) freqs of
+      [] -> (case freqs of
+               [] -> [] -- Can start anywhere
+               (x@(_pos,freq):_xs) | freq < 1 -> [x] -- Pick one with least probability of mine being there
+               _ -> []) -- Only sure mines in the fringe positions
+      x -> x -- Positions without mines. These are sure steps so we pick them in batch for optimization.
 
     -- TODO Implement mask with found mines for optimization and estimation remaining mine count in heuristics.
     -- TODO Implement 0 intel shortcut - do not do full analysis on them (can we make it part of generic algorithm?)
@@ -40,15 +51,9 @@ choosePositions fieldSize field intel = (probePoss, minePoss)
     --             (x:_xs) -> [(x, fromIntegral minesCount -- FIXME - here should be number of remaining mines
     --                         / (fromIntegral $ L.length farField))]
     -}
-
-    probePoss = fmap fst $
-          case takeWhile ((0==) . snd) freqs of
-            [] -> (case freqs of
-                     [] -> [((0,0), 1)] -- Can start anywhere
-                     (x@(_pos,freq):_xs) | freq < 1 -> [x]
-                     _ -> []) -- Pick one with least probability of mine being there
-            x -> x -- Positions without mines. These are sure steps so we pick them in batch for optimization.
-    minePoss = fmap fst $ filter ((1==) . snd) freqs
+    -- XXX Fallback implementation stub
+    unknowns = M.toList $ M.filter (CUnknown==) field
+    fallback = head $ S.toList $ S.difference (S.fromList (fmap fst unknowns)) (S.fromList (fmap fst freqs))
 
 -- Return [(mine-position, probability-of-mine-there)] oredered by increasing probability
 rankProbePositions :: Size -> Field -> Intel -> [(Pos, Float)]
