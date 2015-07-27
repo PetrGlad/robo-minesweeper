@@ -4,6 +4,7 @@ import Common
 
 import Data.Map (Map)
 import qualified Data.Map as M
+import qualified Data.List as L
 import qualified Control.Monad as Cm
 
 import qualified Data.Set as S
@@ -18,10 +19,13 @@ probeStep mines field pos
 -- Return probe positions and new field
 gameStep :: Size -> Mines -> Field -> Algorithm -> ([Pos], Maybe Field)
 gameStep fieldSize mines field algorithm = (probePositions,
-                                            Cm.foldM (probeStep mines) field probePositions)
+                                            Cm.foldM (probeStep mines) field probePositions
+                                            >>= disarmMines)
   where
-    -- Constraint: set of mines should not be available to algorithm (chooseProbePositions)
+    -- (!) Constraint: set of mines should not be available to algorithm (chooseProbePositions)
     intel = filterLayer (genIntel mines) field
-    probePositions = fst $ algorithm fieldSize field intel
+    (probePositions, foundMines) = algorithm fieldSize field intel
+    disarmMines fld = Just $ L.foldl (\f m -> M.alter (\_ -> Just CDisarmed) m f) fld foundMines
 
-
+isGameComplete :: Mines -> Field -> Bool
+isGameComplete mines field = mines == (M.keysSet $ M.filter (CDisarmed==) field)

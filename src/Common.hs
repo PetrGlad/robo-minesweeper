@@ -15,6 +15,7 @@ type Mines = Set Pos
 type Layer a = Map Pos a
 type Intel = Layer Int
 data Cell = CMine
+            | CDisarmed
             | CUnknown
             | CFree
        deriving (Eq)
@@ -25,6 +26,7 @@ type Algorithm = Size -> Field -> Intel -> ([Pos], [Pos])
 
 instance Show Cell where
   show CMine = "@"
+  show CDisarmed = "*"
   show CUnknown = "#"
   show CFree = " "
 

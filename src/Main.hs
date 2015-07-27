@@ -52,9 +52,6 @@ renderColored colorSetup action = do
 positionsToLayer :: (Show a) => (Pos -> a) -> Set Pos -> Layer a
 positionsToLayer showFn = M.fromSet showFn
 
-isGameComplete :: Mines -> Field -> Bool
-isGameComplete mines field = S.size mines == L.length (filter (CUnknown==) (M.elems field))
-
 moveCursorBelow :: Size -> IO ()
 moveCursorBelow boardSize = setCursorPosition (snd boardSize) 0
 
@@ -69,8 +66,8 @@ renderBoard field mines =
                     SetColor Foreground Vivid Red]
       fieldColor = [SetColor Foreground Dull White]
   in do
-    renderColored fieldColor $ renderLayer field
     renderColored minesColor $ renderLayer $ positionsToLayer (const CMine) mines
+    renderColored fieldColor $ renderLayer field
 --     renderLayer intel
 
 step :: Size -> Mines -> Field -> IO ()
@@ -89,14 +86,14 @@ step fieldSize mines field =
     -- _ <- getChar
 
     case newField of
-      Nothing -> showFinalStatus $ "Tripped on mine at " ++ (show probePositions)
+      Nothing -> showFinalStatus $ "Failed: Tripped on mine at " ++ (show probePositions)
       Just f ->
         if isGameComplete mines f
           then do
                 renderBoard f mines
                 showFinalStatus "Done"
           else if L.null probePositions
-            then showFinalStatus "Cannot decide on probe position"
+            then showFinalStatus "Failed: Undecided on probe position, Robominer disqualified."
             else step fieldSize mines f
 
 main :: IO ()
