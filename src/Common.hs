@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
--- | Declarations that are common for Main and Algorithm modules
 module Common where
 
 import Data.Map (Map)
@@ -20,6 +19,9 @@ data Cell = CMine
             | CFree
        deriving (Eq)
 type Field = Layer Cell
+
+-- Returns (what-positions-to-probe, where-mines-are)
+type Algorithm = Size -> Field -> Intel -> ([Pos], [Pos])
 
 instance Show Cell where
   show CMine = "@"
@@ -53,3 +55,7 @@ genIntel mines = foldl updateNeighbours M.empty (S.toList mines)
                                            intel (nearPositions pos)
         updateCount Nothing = Just 1
         updateCount (Just x) = Just (x + 1)
+
+genField :: Size -> Field
+genField (sx, sy) = M.fromList [((x,y), CUnknown) | x <- [0..(sx-1)], y <- [0..(sy-1)]]
+
