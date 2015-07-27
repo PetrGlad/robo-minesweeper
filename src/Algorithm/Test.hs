@@ -57,9 +57,9 @@ field0 = ["   ###@",
           "#@ #@##",
           "#######"]
 
-testData0 :: [Pos]
+testData0 :: ([Pos],[Pos])
 -- > Actual: Tripped on mine at (1,4).
-testData0 = chooseProbePositions (7,6) field intel
+testData0 = choosePositions (7,6) field intel
   where
     (size, mines, field, intel) = parseTestData field0
 
