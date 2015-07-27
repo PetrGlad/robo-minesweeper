@@ -41,16 +41,16 @@ choosePositions fieldSize field intel = (probePoss, minePoss)
     --                         / (fromIntegral $ L.length farField))]
     -}
 
-    -- Find positions without mines. These are sure steps so we'll do them in batch for optimization.
     probePoss = fmap fst $
           case takeWhile ((0==) . snd) freqs of
             [] -> (case freqs of
                      [] -> [((0,0), 1)] -- Can start anywhere
-                     (x:_xs) -> [x]) -- Pick one with least probability of mine being there
-            x -> x
+                     (x@(_pos,freq):_xs) | freq < 1 -> [x]
+                     _ -> []) -- Pick one with least probability of mine being there
+            x -> x -- Positions without mines. These are sure steps so we pick them in batch for optimization.
     minePoss = fmap fst $ filter ((1==) . snd) freqs
 
--- Return [(mine-position, probability-of-mine-there)]
+-- Return [(mine-position, probability-of-mine-there)] oredered by increasing probability
 rankProbePositions :: Size -> Field -> Intel -> [(Pos, Float)]
 rankProbePositions fieldSize field intel = freqs
   where
