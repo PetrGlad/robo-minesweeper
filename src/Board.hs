@@ -3,6 +3,7 @@ module Board where
 import Common
 
 import qualified Data.Map.Strict as M
+import Data.Map.Strict (Map)
 import qualified Data.Set as S
 import Data.Set (Set)
 
@@ -75,3 +76,11 @@ renderIO cells = do
     renderCell (color, str) = do
       setSGR color
       (putStr str)
+
+renderCell :: Show a => Pos -> a -> IO ()
+renderCell (x, y) c = do
+               setCursorPosition y x
+               putStr (show c)
+
+renderLayer :: Show a => Map Pos a -> IO ()
+renderLayer cells = mapM_ (uncurry renderCell) (M.toList cells)

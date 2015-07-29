@@ -11,7 +11,7 @@ import Board (BoardCell(..))
 import qualified System.Random as SR
 import qualified Control.Monad.Random as CMR
 
-import Data.Map.Strict (Map)
+-- import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 -- import Data.Set (Set)
 import qualified Data.Set as S
@@ -36,14 +36,6 @@ genMines :: Size -> Int -> IO Mines
 genMines size cnt = do
       mines <- CMR.evalRandIO $ Cm.replicateM cnt $ genMine size
       return $ S.fromList mines
-
-renderCell :: Show a => Pos -> a -> IO ()
-renderCell (x, y) c = do
-               setCursorPosition y x
-               putStr (show c)
-
-renderLayer :: Show a => Map Pos a -> IO ()
-renderLayer cells = mapM_ (uncurry renderCell) (M.toList cells)
 
 moveCursorBelow :: Size -> IO ()
 moveCursorBelow boardSize = setCursorPosition (snd boardSize) 0
@@ -75,25 +67,29 @@ renderBoard field mines = do
         Board.fromPositions (Board.BCell CMine) mines,
         Board.fromField $ M.filter (==CDisarmed) field]
 
-render :: Size -> Mines -> Field -> IO ()
-render fieldSize mines field =
+showDebugInfo :: Size -> Mines -> Field -> IO ()
+showDebugInfo fieldSize mines field =
   let intel = visibleIntel field mines
   in do
+    moveCursorBelow fieldSize
+    _ <- Cm.replicateM 3 $ putStrLn ""
+    putStrLn "----Intel and mines----"
+    putStrLn $ Board.showLayer $ Board.fromBoards [
+      (Board.fromPositions (Board.BCell CMine) mines),
+      (Board.fromIntel intel)]
+    putStrLn "----Subtracted intel and disarmed ----"
+    putStrLn $ Board.showLayer $ Board.fromBoards [
+      (Board.fromField $ M.filter (==CDisarmed) field),
+      (Board.fromIntel (subtractMines (filterField CDisarmed field) intel))]
+    putStrLn "-->>"
+    _ <-getChar
+    return ()
+
+render :: Size -> Mines -> Field -> IO ()
+render fieldSize mines field = do
     -- clearScreen
     renderBoard field mines
-    -- renderLayer intel
-    moveCursorBelow fieldSize -- Move it away so it does not obstruct cells
---     Cm.replicateM 3 $ putStrLn ""
---     putStrLn "------mines-----"
---     putStrLn $ Board.showLayer $ Board.fromBoards [
---       (Board.fromPositions (Board.BCell CMine) mines),
---       (Board.fromIntel intel)]
---     putStrLn "------Subtracted----"
---     putStrLn $ Board.showLayer $ Board.fromBoards [
---       (Board.fromField $ M.filter (==CDisarmed) field),
---       (Board.fromIntel (subtractMines (filterField CDisarmed field) intel))]
---     putStrLn "-->>"
---     c <-getChar
+    -- showDebugInfo fieldSize mines field
     return ()
 
 step :: Size -> Mines -> Field -> IO ()
