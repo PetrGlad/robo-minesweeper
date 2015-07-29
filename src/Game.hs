@@ -2,8 +2,8 @@ module Game where
 
 import Common
 
-import Data.Map (Map)
-import qualified Data.Map as M
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as M
 import qualified Data.List as L
 import qualified Control.Monad as Cm
 
@@ -23,9 +23,11 @@ gameStep fieldSize mines field algorithm = (probePositions,
                                             >>= disarmMines)
   where
     -- (!) Constraint: set of mines should not be available to algorithm (chooseProbePositions)
-    intel = filterLayer (genIntel mines) field
-    (probePositions, foundMines) = algorithm fieldSize field intel
+    (probePositions, foundMines) = algorithm fieldSize field (visibleIntel field mines)
     disarmMines fld = Just $ L.foldl (\f m -> M.alter (\_ -> Just CDisarmed) m f) fld foundMines
 
 isGameComplete :: Mines -> Field -> Bool
 isGameComplete mines field = mines == (M.keysSet $ M.filter (CDisarmed==) field)
+
+visibleIntel :: Field -> Mines -> Intel
+visibleIntel field mines = filterLayer (genIntel mines) field

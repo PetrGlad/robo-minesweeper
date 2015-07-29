@@ -2,8 +2,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Common where
 
-import Data.Map (Map)
-import qualified Data.Map as M
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as M
 import qualified Data.MultiMap as Mm
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -34,6 +34,9 @@ instance Show Cell where
 instance (Show a, Show b) => Show (Mm.MultiMap a b) where
   show = show . Mm.toMap
 
+layerSize :: Layer a -> Size
+layerSize = M.foldlWithKey (\(mx, my) (x, y) _c -> (max mx x, max my y)) (0, 0)
+
 neighbourDeltas :: [PosDelta]
 neighbourDeltas = [(x, y) | x <- d, y <- d, x /= 0 || y /= 0]
   where d = [-1..1]
@@ -61,3 +64,11 @@ genIntel mines = foldl updateNeighbours M.empty (S.toList mines)
 genField :: Size -> Field
 genField (sx, sy) = M.fromList [((x,y), CUnknown) | x <- [0..(sx-1)], y <- [0..(sy-1)]]
 
+filterField :: Cell -> Field -> Set Pos
+filterField cell field = M.keysSet $ M.filter (cell==) field
+
+enumPositions :: Size -> [Pos]
+enumPositions (width, height) = [(col, row) | col <- [0..(width-1)], row <- [0..(height-1)]]
+
+inRange :: Int -> Int -> Int -> Bool
+inRange lo hi x = x >= lo && x < hi

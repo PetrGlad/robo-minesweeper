@@ -4,7 +4,7 @@ import Common
 import Algorithm
 -- Large, Medium, Small
 import qualified Data.List as L
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import qualified Data.Set as S
 import Test.QuickCheck
 

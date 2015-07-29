@@ -4,8 +4,8 @@ module Algorithm where
 
 import Common
 
-import Data.Map (Map)
-import qualified Data.Map as M
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as M
 import qualified Data.MultiMap as Mm
 import qualified Data.MultiSet as Ms
 import Data.Set (Set)
@@ -19,11 +19,13 @@ import qualified Data.Tuple as Tu
 
 choosePositions :: Algorithm
 choosePositions fieldSize field intel =
-  (pickProbePoss field freqs, -- Where to probe
+  (pickProbePoss field (filter (\(pos, _freq) -> not (S.member pos disarmed)) freqs), -- Where to probe
    fmap fst $ filter ((1==) . snd) freqs) -- Sure mines
   where
-    freqs = rankProbePositions fieldSize field intel
+    disarmed = filterField CDisarmed field
+    freqs = rankProbePositions fieldSize field (subtractMines disarmed intel)
 
+-- Freqs should be ordered by increasing frequency
 pickProbePoss :: Field -> [(Pos, Float)] -> [Pos]
 pickProbePoss field freqs = case pick of
   [] -> fallback
@@ -39,21 +41,18 @@ pickProbePoss field freqs = case pick of
 
     -- TODO Implement mask with found mines for optimization and estimation remaining mine count in heuristics.
     -- TODO Implement 0 intel shortcut - do not do full analysis on them (can we make it part of generic algorithm?)
-    -- TODO Implement mines "disarm" to reduce unknown boundary (place a mark on mine and subtract this mine from intel)
 
     {- TODO If probability of mine on an "inner" unexplored cell is less than on the edge then choose one such cell randomly.
     -- (This increases chances of success in ambiguous situations)
-    -- Choose "step into unknown" position:
-    -- unknownMargin = Mm.keysSet (groupByFirst edgeRelations)
-    -- farField = S.toList $ M.keysSet $ M.filterWithKey (\p c -> (c == CUnknown) && (not $ S.member p unknownMargin)) field
-    -- farPoss = case farField of
+    -- Choose "step into unknown" position:    -- farPoss = case farField of
     --             [] -> []
     --             (x:_xs) -> [(x, fromIntegral minesCount -- FIXME - here should be number of remaining mines
     --                         / (fromIntegral $ L.length farField))]
     -}
-    -- XXX Fallback implementation stub
-    unknowns = M.toList $ M.filter (CUnknown==) field
-    fallback = take 1 $ S.toList $ S.difference (S.fromList (fmap fst unknowns)) (S.fromList (fmap fst freqs))
+    -- Fallback implementation: Get unknown but not in fringe
+    fallback = take 1 $ S.toList $ S.difference
+      (filterField CUnknown field)
+      (S.fromList (fmap fst freqs))
 
 -- Return [(mine-position, probability-of-mine-there)] oredered by increasing probability
 rankProbePositions :: Size -> Field -> Intel -> [(Pos, Float)]
@@ -62,24 +61,33 @@ rankProbePositions fieldSize field intel = freqs
     intelRel = intelMatrix fieldSize (enumPositions fieldSize)
     -- edgeMinesMatrix = discoverableMinesMatrix (visibleIntelMatrix intelRel field) field
 
-    viMatrix = (visibleIntelMatrix intelRel field)
-    edgeRelations = discoverableMinesMatrix viMatrix field -- "Edge" between explored and unknown cells
+    edgeRelations = discoverableMinesMatrix
+      (visibleIntelMatrix intelRel field)
+      field -- "Edge" between explored and unknown cells
+
     combos = consistentCombinations edgeRelations intel
 
-    freqGroups = Mm.toMap $ Mm.fromList $ fmap (\(p,t) -> (p, boolTo01 t))
+    posOptions = Mm.toMap $ Mm.fromList $ fmap (\(p,t) -> (p, boolTo01 t))
                      $ L.concat $ fmap M.toList combos
     freqs = L.sortBy (\(_p1, f1) (_p2, f2) -> compare f1 f2)
                 $ (M.toList
                      $ M.map (\cs -> ((fromIntegral (sum cs))::Float) / (fromIntegral (L.length cs)))
-                     freqGroups)
+                     posOptions)
+
+-- Ignore already found mines in intel
+subtractMines :: Set Pos -> Intel -> Intel
+subtractMines mines intl = foldl
+     (\i dm -> M.alter decIntl dm i) intl
+     (concatMap nearPositions $ S.toList mines)
+  where
+    decIntl = (\mcnt -> case mcnt of
+                         Nothing -> Nothing
+                         Just c | c < 1 -> decErr
+                         Just c | c == 1 -> Nothing
+                         Just c -> Just $ c - 1)
+    decErr = error "Wrong disarmed mine (or intl is inconsistent)"
 
 type CellPair = (Pos, Pos)
-
-enumPositions :: Size -> [Pos]
-enumPositions (width, height) = [(col, row) | col <- [0..(width-1)], row <- [0..(height-1)]]
-
-inRange :: Int -> Int -> Int -> Bool
-inRange lo hi x = x >= lo && x < hi
 
 inBoard :: Size -> Pos -> Bool
 inBoard (w, h) (x,y) = (inRange 0 w x) && (inRange 0 h y)
