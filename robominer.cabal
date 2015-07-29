@@ -12,7 +12,7 @@ executable robominer
   main-is: Main.hs
   hs-source-dirs: src
   default-language: Haskell2010
-  ghc-options: -Wall -O2
+  ghc-options: -Wall -O2 -threaded -rtsopts
   build-depends:
     base,
     random,
@@ -21,6 +21,7 @@ executable robominer
     multimap,
     multiset,
     containers,
+    parallel,
 -- https://hackage.haskell.org/package/GHood
 -- https://hackage.haskell.org/package/hood-0.2.1/docs/Debug-Hood-Observe.html
 -- https://hackage.haskell.org/package/GHood
@@ -28,5 +29,6 @@ executable robominer
 --    text
     QuickCheck
 -- https://hackage.haskell.org/package/HTF-0.13.0.0/docs/Test-Framework-Tutorial.html
+
 
 

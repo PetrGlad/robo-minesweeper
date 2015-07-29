@@ -6,14 +6,24 @@ Program that automatically plays Minesweeper game
 
 In ambiguous situations algorithm attempts to minimize risk.
 
+To build:
+  cabal build
+
+To run:
+   dist/build/robominer/robominer
+or specify rows, columns, mines count:
+  dist/build/robominer/robominer 128 64 1200
+
+In case of dense fields try:
+  dist/build/robominer/robominer +RTS -N2 -K1g -RTS
+(still may take forever to complete but at least it does not fail with exception)
+
 TODO
 ----
 
-* Cleanup/streamline code
-* Write tests, cover edge cases 
 * Implement remaining mines count heuristics (stepping randomly into unexplored area) 
-* Optimize: Mark mines that are already found and cleanup intel to reduce dependencies
-  (now it produces stack overflow on (128, 64) with 1500 mines)
+* Cleanup/streamline code
+* Profile to find out why positions enumeration takes very long time sometimes (in hope it can be optimized).
   
 Hints
 -----

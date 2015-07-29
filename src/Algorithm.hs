@@ -14,8 +14,13 @@ import qualified Data.List as L
 import qualified Data.Tuple as Tu
 -- import qualified Control.Monad as Cm
 -- import Data.Sequence
+-- import Control.Parallel
+import Control.Parallel.Strategies (parMap, rseq)
 
 -- import Debug.Trace
+
+notShorterThan :: Int -> [a] -> Bool
+notShorterThan n l = n == length (take n l)
 
 {- The algorithm:
   1. Find all possible mine layouts that satisfy available intel.
@@ -28,13 +33,14 @@ import qualified Data.Tuple as Tu
   to handle a special case.
  -}
 choosePositions :: Algorithm
-choosePositions fieldSize field intel =
-  (pickProbePoss field (discardDisarmed freqs), -- Where to probe
-   fmap fst $ filter ((1==) . snd) freqs) -- Sure mines
+choosePositions fieldSize field intel = (probePositions, foundMines)
   where
     disarmed = filterField CDisarmed field
     freqs = rankProbePositions fieldSize field (subtractMines disarmed intel)
     discardDisarmed = filter (\(pos, _freq) -> not (S.member pos disarmed))
+    probePositions = pickProbePoss field (discardDisarmed freqs)
+    foundMines = fmap fst $ filter ((1==) . snd) freqs
+
 
 {- Pick position(s) to probe given mine frequencies.
    Precondition: Freqs should be ordered by increasing frequency.
@@ -46,13 +52,11 @@ pickProbePoss field freqs = case pick of
   where
     pick = fmap fst $
       case takeWhile ((0==) . snd) freqs of
-      [] -> (case freqs of
+        [] -> (case freqs of
                [] -> [] -- Can start anywhere
                (x@(_pos,freq):_xs) | freq < 1 -> [x] -- Pick one with least probability of mine being there
                _ -> []) -- Only sure mines in the fringe positions
-      x -> x -- Positions without mines. These are sure steps so we pick them in batch for optimization.
-
-    -- TODO Implement 0 intel shortcut - do not do full analysis on them (can we make it part of generic algorithm?)
+        x -> x -- Positions without mines. These are sure steps so we pick them in batch for optimization.
 
     {- TODO If probability of mine on an "inner" unexplored cell is less than on the edge then choose one such cell randomly.
     -- (This should increase chance of success in ambiguous situations)
@@ -69,19 +73,37 @@ pickProbePoss field freqs = case pick of
 -- Return "mine frequencies" [(mine-position, probability-of-mine-there)] oredered by increasing probability
 rankProbePositions :: Size -> Field -> Intel -> [(Pos, Float)]
 rankProbePositions fieldSize field intel =
-  L.sortBy (\(_p1, f1) (_p2, f2) -> compare f1 f2)
-           $ (M.toList
-              $ M.map (\cs -> ((fromIntegral (sum cs))::Float) / (fromIntegral (L.length cs)))
-               posOptions)
+  L.concat [
+    map (\x -> (x, 0)) safeProbes,
+    freqs]
   where
     intelRel = intelMatrix fieldSize (enumPositions fieldSize)
     edgeRelations = discoverableMinesMatrix
       (visibleIntelMatrix intelRel field)
       field -- "Edge" between explored and unknown cells
+
+    {- Intention was to avoid full analysis if there are safe probe positions.
+        Effectvely it woul favor safe areas sweeping to mines marking which is postponed.
+        I hoped that it would make more progress in hard cases - it seems that's not actually true.
+    -}
+    safeProbes = [] -- safeProbes shortct is disabled for now as it unnecessarily complicates code.
+    -- safeProbes = findSafeProbes edgeRelations intel
+
     combos = consistentCombinations edgeRelations intel
     -- Possible values (mine/free) of positions
     posOptions = Mm.toMap $ Mm.fromList $ fmap (\(p,t) -> (p, boolTo01 t))
-                 $ L.concat $ fmap M.toList combos
+                 $ L.concatMap M.toList combos
+    freqs = L.sortBy (\(_p1, f1) (_p2, f2) -> compare f1 f2)
+            $ (M.toList
+              $ M.map (\cs -> ((fromIntegral (sum cs))::Float) / (fromIntegral (L.length cs)))
+               posOptions)
+
+-- Optimization shortcut: Pick probe positions around zero intel cells and skippin full combination analysis.
+findSafeProbes :: [CellPair] -> Intel -> [Pos]
+findSafeProbes edgeRelations intel = S.toList $ S.fromList $ map fst $ filter
+    (\(_, n) -> not $ S.member n dangerIntelPoss)
+    edgeRelations
+  where dangerIntelPoss = M.keysSet $ M.filter (/=0) intel
 
 -- Ignore already found mines in intel
 subtractMines :: Set Pos -> Intel -> Intel
@@ -101,7 +123,7 @@ type CellPair = (Pos, Pos)
 inBoard :: Size -> Pos -> Bool
 inBoard (w, h) (x,y) = (inRange 0 w x) && (inRange 0 h y)
 
--- Produces (cell, neighbour) relations
+-- Produces ((mine)cell, neighbour) relations
 intelMatrix :: Size -> [Pos] -> [CellPair]
 intelMatrix s ps = concatMap (\p -> fmap (\n -> (p, n))
                                          (filter (inBoard s) (nearPositions p)))
@@ -170,7 +192,7 @@ constrainedCombos intel linkedMinePoss currentLayout (testPos : tps) =
     -- Generate only combinations that are consistent in this position.
     if isFeasible
       then map (\c -> M.union currentLayout c)
-               (concatMap testCombo tpLayouts)
+               (L.concat $ (parMap rseq) testCombo tpLayouts)
       else []
     where
       tpIntel = getIntel intel testPos

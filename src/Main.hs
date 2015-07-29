@@ -20,6 +20,7 @@ import qualified Control.Monad as Cm
 -- import Data.Sequence
 
 import System.Console.ANSI
+import System.Environment (getArgs)
 
 -- import qualified Control.Exception as CE
 -- import System.IO
@@ -45,16 +46,20 @@ showStatus fieldSize message = do
     moveCursorBelow fieldSize
     putStrLn message
 
-renderBoard :: Field -> Mines -> IO ()
-renderBoard field mines = do
+renderBoard :: Field -> Mines -> [Pos] -> IO ()
+renderBoard field mines probes = do
   setCursorPosition 0 0
   Board.renderIO (Board.cellsRender cellFn board)
   where
-    cellFn _pos bc = (sgr, str)
+    probeSet = S.fromList probes
+    cellFn pos bc = (sgr, str)
       where
         sgr = case bc of
-          Just (BCell CMine) ->     [SetConsoleIntensity BoldIntensity,
+          _ | S.member pos probeSet ->
+                                    [SetConsoleIntensity BoldIntensity,
                                      SetColor Foreground Vivid Red]
+          Just (BCell CMine) ->     [SetConsoleIntensity BoldIntensity,
+                                     SetColor Foreground Vivid Magenta]
           Just (BCell CDisarmed) -> [SetConsoleIntensity BoldIntensity,
                                      SetColor Foreground Vivid Green]
           _ ->                      [SetConsoleIntensity NormalIntensity,
@@ -72,7 +77,7 @@ showDebugInfo fieldSize mines field =
   let intel = visibleIntel field mines
   in do
     moveCursorBelow fieldSize
-    _ <- Cm.replicateM 3 $ putStrLn ""
+    _ <- Cm.replicateM 8 $ putStrLn ""
     putStrLn "----Intel and mines----"
     putStrLn $ Board.showLayer $ Board.fromBoards [
       (Board.fromPositions (Board.BCell CMine) mines),
@@ -82,46 +87,52 @@ showDebugInfo fieldSize mines field =
       (Board.fromField $ M.filter (==CDisarmed) field),
       (Board.fromIntel (subtractMines (filterField CDisarmed field) intel))]
     putStrLn "-->>"
-    _ <-getChar
+--     _ <-getChar
     return ()
 
-render :: Size -> Mines -> Field -> IO ()
-render fieldSize mines field = do
-    -- clearScreen
-    renderBoard field mines
-    -- showDebugInfo fieldSize mines field
+render :: Size -> Mines -> [Pos] -> Field -> IO ()
+render fieldSize mines probes field = do
+--    clearScreen
+    renderBoard field mines probes
+--     showDebugInfo fieldSize mines field
     return ()
 
 step :: Size -> Mines -> Field -> IO ()
 step fieldSize mines field =
   let (probePositions, newField) =
         gameStep fieldSize mines field choosePositions
-      showFinalStatus message = do
-        showStatus fieldSize message
-        return ()
+      showFinalStatus message = showStatus fieldSize message
+      render0 = render fieldSize mines probePositions
   in do
     -- CC.threadDelay 300000
     case newField of
       Nothing ->
-        do render fieldSize mines field
+        do render0 field
            showFinalStatus $ "Tripped on mine at " ++ (show probePositions)
       Just f ->
         if isGameComplete mines f
           then do
-                render fieldSize mines f
+                render0 f
                 showFinalStatus "Done"
           else if L.null probePositions
             then showFinalStatus "No probe position, disqualified."
             else do
-                render fieldSize mines f
+                render0 f
                 step fieldSize mines f
 
-main :: IO ()
-main =
-  let dims = (128, 64)
-      field = (genField dims)
-  in do
-    mines <- genMines dims 1200 -- 1300 and more usually produces stack overflow exception
+run :: Size -> Int -> IO ()
+run fieldSize mineCount = do
+    putStrLn $ "size=" ++ show fieldSize
+    putStrLn $ "mines=" ++ show mineCount
+    mines <- genMines fieldSize mineCount -- 1300 and more usually produces stack overflow exception
     clearScreen
-    renderBoard field mines
-    step dims mines field
+    let field = genField fieldSize
+    renderBoard field mines []
+    step fieldSize mines field
+
+main :: IO ()
+main = do
+  args <- getArgs
+  case args of
+    [cols, rows, minesCount] -> run (read cols, read rows) (read minesCount)
+    _ -> run (100, 40) 600

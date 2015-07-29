@@ -27,7 +27,9 @@ gameStep fieldSize mines field algorithm = (probePositions,
     disarmMines fld = Just $ L.foldl (\f m -> M.alter (\_ -> Just CDisarmed) m f) fld foundMines
 
 isGameComplete :: Mines -> Field -> Bool
-isGameComplete mines field = mines == (M.keysSet $ M.filter (CDisarmed==) field)
+isGameComplete mines field =
+  (mines == (M.keysSet $ M.filter (CDisarmed==) field))
+  && (M.null $ M.filter (CUnknown==) field)
 
 visibleIntel :: Field -> Mines -> Intel
 visibleIntel field mines = filterLayer (genIntel mines) field

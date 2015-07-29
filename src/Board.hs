@@ -82,5 +82,6 @@ renderCell (x, y) c = do
                setCursorPosition y x
                putStr (show c)
 
+-- Set-cursor-position render to ANSI console
 renderLayer :: Show a => Map Pos a -> IO ()
 renderLayer cells = mapM_ (uncurry renderCell) (M.toList cells)
