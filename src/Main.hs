@@ -78,28 +78,28 @@ step fieldSize mines field =
         showStatus fieldSize message
         return ()
   in do
-    clearScreen
-    renderBoard field mines
-    moveCursorBelow fieldSize -- Move it away so it does not obstruct cells
-
     -- CC.threadDelay 300000
     -- _ <- getChar
-
     case newField of
-      Nothing -> showFinalStatus $ "Failed: Tripped on mine at " ++ (show probePositions)
+      Nothing -> showFinalStatus $ "Tripped on mine at " ++ (show probePositions)
       Just f ->
         if isGameComplete mines f
           then do
                 renderBoard f mines
                 showFinalStatus "Done"
           else if L.null probePositions
-            then showFinalStatus "Failed: Undecided on probe position, Robominer disqualified."
-            else step fieldSize mines f
+            then showFinalStatus "No probe position, disqualified."
+            else do
+                renderBoard f mines
+                moveCursorBelow fieldSize -- Move it away so it does not obstruct cells
+                step fieldSize mines f
 
 main :: IO ()
 main =
   let dims = (64, 32)
+      field = (genField dims)
   in do
     clearScreen
     mines <- genMines dims 350
-    step dims mines (genField dims)
+    renderBoard field mines
+    step dims mines field
