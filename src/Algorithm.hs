@@ -17,15 +17,28 @@ import qualified Data.Tuple as Tu
 
 -- import Debug.Trace
 
+{- The algorithm:
+  1. Find all possible mine layouts that satisfy available intel.
+  2. Rank involved positions by probability (frequency in all layouts) of mine being there.
+  3. Pick positions for probe/mark according to calculated frequency.
+
+  Optimization step (need to do performance benchmarks to prove that it is effective):
+  On subsequent calls, once mine is marked it is subtracted from intel and explicitly excised
+  from probe positions. Latter is required since intel has "hole" right under mine so we need
+  to handle a special case.
+ -}
 choosePositions :: Algorithm
 choosePositions fieldSize field intel =
-  (pickProbePoss field (filter (\(pos, _freq) -> not (S.member pos disarmed)) freqs), -- Where to probe
+  (pickProbePoss field (discardDisarmed freqs), -- Where to probe
    fmap fst $ filter ((1==) . snd) freqs) -- Sure mines
   where
     disarmed = filterField CDisarmed field
     freqs = rankProbePositions fieldSize field (subtractMines disarmed intel)
+    discardDisarmed = filter (\(pos, _freq) -> not (S.member pos disarmed))
 
--- Freqs should be ordered by increasing frequency
+{- Pick position(s) to probe given mine frequencies.
+   Precondition: Freqs should be ordered by increasing frequency.
+-}
 pickProbePoss :: Field -> [(Pos, Float)] -> [Pos]
 pickProbePoss field freqs = case pick of
   [] -> fallback
@@ -39,40 +52,36 @@ pickProbePoss field freqs = case pick of
                _ -> []) -- Only sure mines in the fringe positions
       x -> x -- Positions without mines. These are sure steps so we pick them in batch for optimization.
 
-    -- TODO Implement mask with found mines for optimization and estimation remaining mine count in heuristics.
     -- TODO Implement 0 intel shortcut - do not do full analysis on them (can we make it part of generic algorithm?)
 
     {- TODO If probability of mine on an "inner" unexplored cell is less than on the edge then choose one such cell randomly.
-    -- (This increases chances of success in ambiguous situations)
+    -- (This should increase chance of success in ambiguous situations)
     -- Choose "step into unknown" position:    -- farPoss = case farField of
     --             [] -> []
     --             (x:_xs) -> [(x, fromIntegral minesCount -- FIXME - here should be number of remaining mines
     --                         / (fromIntegral $ L.length farField))]
     -}
-    -- Fallback implementation: Get unknown but not in fringe
+    -- Fallback implementation: Get an unknown position but not in fringe (we're here because fringe is all mines)
     fallback = take 1 $ S.toList $ S.difference
       (filterField CUnknown field)
       (S.fromList (fmap fst freqs))
 
--- Return [(mine-position, probability-of-mine-there)] oredered by increasing probability
+-- Return "mine frequencies" [(mine-position, probability-of-mine-there)] oredered by increasing probability
 rankProbePositions :: Size -> Field -> Intel -> [(Pos, Float)]
-rankProbePositions fieldSize field intel = freqs
+rankProbePositions fieldSize field intel =
+  L.sortBy (\(_p1, f1) (_p2, f2) -> compare f1 f2)
+           $ (M.toList
+              $ M.map (\cs -> ((fromIntegral (sum cs))::Float) / (fromIntegral (L.length cs)))
+               posOptions)
   where
     intelRel = intelMatrix fieldSize (enumPositions fieldSize)
-    -- edgeMinesMatrix = discoverableMinesMatrix (visibleIntelMatrix intelRel field) field
-
     edgeRelations = discoverableMinesMatrix
       (visibleIntelMatrix intelRel field)
       field -- "Edge" between explored and unknown cells
-
     combos = consistentCombinations edgeRelations intel
-
+    -- Possible values (mine/free) of positions
     posOptions = Mm.toMap $ Mm.fromList $ fmap (\(p,t) -> (p, boolTo01 t))
-                     $ L.concat $ fmap M.toList combos
-    freqs = L.sortBy (\(_p1, f1) (_p2, f2) -> compare f1 f2)
-                $ (M.toList
-                     $ M.map (\cs -> ((fromIntegral (sum cs))::Float) / (fromIntegral (L.length cs)))
-                     posOptions)
+                 $ L.concat $ fmap M.toList combos
 
 -- Ignore already found mines in intel
 subtractMines :: Set Pos -> Intel -> Intel

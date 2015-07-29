@@ -48,13 +48,30 @@ fromIntel = M.map BIntel
 fromBoards :: [Board] -> Board
 fromBoards = foldl Board.compose Board.empty
 
--- -- Fancy render board to ANSI console
--- ansiRender :: (Pos -> BoardCell -> ([SGR], String)) -> Board -> IO ()
--- ansiRender cellFn board = mapM mapRow [0..(snd sz)]
---   where
---     sz = layerSize layer
---     mapRow r = concatMap (getCell r) [0..(fst sz)]
---     cellAction () c =  r c =
---     case M.lookup (c, r) layer of
---       Nothing -> " "
---       Just v -> show v
+renderColored :: [SGR] -> IO () -> IO ()
+renderColored colorSetup action = do
+  setSGR colorSetup
+  action
+  setSGR [Reset]
+
+type CellRender = ([SGR], String)
+
+-- Fancy render board to ANSI console
+cellsRender :: (Pos -> Maybe BoardCell -> ([SGR], String)) -> Board -> [[CellRender]]
+cellsRender cellFn layer = map mapRow [0..(snd sz)]
+  where
+    sz = layerSize layer
+    mapRow r = map (getCell r) [0..(fst sz)]
+    getCell row col = cellFn (col, row) (M.lookup (col, row) layer)
+
+renderIO :: [[CellRender]] -> IO ()
+renderIO cells = do
+  mapM renderRow cells
+  setSGR [Reset]
+  where
+    renderRow r = do
+      mapM renderCell r
+      putStrLn ""
+    renderCell (color, str) = do
+      setSGR color
+      (putStr str)

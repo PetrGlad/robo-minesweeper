@@ -1,18 +1,19 @@
 {-# OPTIONS_GHC -Wall #-}
--- | Main loop and rendering
+-- | Main loop
 module Main where
 
 import Common
 import Algorithm
 import Game
 import qualified Board
+import Board (BoardCell(..))
 
 import qualified System.Random as SR
 import qualified Control.Monad.Random as CMR
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
-import Data.Set (Set)
+-- import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.List as L
 import qualified Control.Monad as Cm
@@ -44,15 +45,6 @@ renderCell (x, y) c = do
 renderLayer :: Show a => Map Pos a -> IO ()
 renderLayer cells = mapM_ (uncurry renderCell) (M.toList cells)
 
-renderColored :: [SGR] -> IO () -> IO ()
-renderColored colorSetup action = do
-  setSGR colorSetup
-  action
-  setSGR [Reset]
-
-positionsToLayer :: (Show a) => (Pos -> a) -> Set Pos -> Layer a
-positionsToLayer showFn = M.fromSet showFn
-
 moveCursorBelow :: Size -> IO ()
 moveCursorBelow boardSize = setCursorPosition (snd boardSize) 0
 
@@ -62,32 +54,44 @@ showStatus fieldSize message = do
     putStrLn message
 
 renderBoard :: Field -> Mines -> IO ()
-renderBoard field mines =
-  let minesColor = [SetConsoleIntensity BoldIntensity,
-                    SetColor Foreground Vivid Red]
-      fieldColor = [SetColor Foreground Dull White]
-  in do
-    renderColored fieldColor $ renderLayer field
-    renderColored minesColor $ renderLayer $ positionsToLayer (const CMine) mines
-    renderColored fieldColor $ renderLayer (M.filter (==CDisarmed) field)
+renderBoard field mines = do
+  setCursorPosition 0 0
+  Board.renderIO (Board.cellsRender cellFn board)
+  where
+    cellFn _pos bc = (sgr, str)
+      where
+        sgr = case bc of
+          Just (BCell CMine) ->     [SetConsoleIntensity BoldIntensity,
+                                     SetColor Foreground Vivid Red]
+          Just (BCell CDisarmed) -> [SetConsoleIntensity BoldIntensity,
+                                     SetColor Foreground Vivid Green]
+          _ ->                      [SetConsoleIntensity NormalIntensity,
+                                     SetColor Foreground Dull White]
+        str = case bc of
+          Just x -> show x
+          Nothing -> " "
+    board = Board.fromBoards [
+        Board.fromField field,
+        Board.fromPositions (Board.BCell CMine) mines,
+        Board.fromField $ M.filter (==CDisarmed) field]
 
 render :: Size -> Mines -> Field -> IO ()
 render fieldSize mines field =
-  let newIntel = visibleIntel field mines
+  let intel = visibleIntel field mines
   in do
     -- clearScreen
     renderBoard field mines
-    renderLayer newIntel
+    -- renderLayer intel
     moveCursorBelow fieldSize -- Move it away so it does not obstruct cells
 --     Cm.replicateM 3 $ putStrLn ""
 --     putStrLn "------mines-----"
 --     putStrLn $ Board.showLayer $ Board.fromBoards [
 --       (Board.fromPositions (Board.BCell CMine) mines),
---       (Board.fromIntel newIntel)]
+--       (Board.fromIntel intel)]
 --     putStrLn "------Subtracted----"
 --     putStrLn $ Board.showLayer $ Board.fromBoards [
 --       (Board.fromField $ M.filter (==CDisarmed) field),
---       (Board.fromIntel (subtractMines (filterField CDisarmed field) newIntel))]
+--       (Board.fromIntel (subtractMines (filterField CDisarmed field) intel))]
 --     putStrLn "-->>"
 --     c <-getChar
     return ()
@@ -99,10 +103,8 @@ step fieldSize mines field =
       showFinalStatus message = do
         showStatus fieldSize message
         return ()
-      intel = visibleIntel field mines -- Debug
   in do
     -- CC.threadDelay 300000
-    -- _ <- getChar
     case newField of
       Nothing ->
         do render fieldSize mines field
@@ -123,7 +125,7 @@ main =
   let dims = (128, 64)
       field = (genField dims)
   in do
-    mines <- genMines dims 1000
+    mines <- genMines dims 1200 -- 1300 and more usually produces stack overflow exception
     clearScreen
     renderBoard field mines
     step dims mines field
