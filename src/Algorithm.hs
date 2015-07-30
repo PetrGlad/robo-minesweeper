@@ -22,25 +22,46 @@ import Control.Parallel.Strategies (parMap, rseq)
 notShorterThan :: Int -> [a] -> Bool
 notShorterThan n l = n == length (take n l)
 
-{- The algorithm:
+{- Default algorithm, returns set ofpositions to probe next.
+  The algorithm:
   1. Find all possible mine layouts that satisfy available intel.
   2. Rank involved positions by probability (frequency in all layouts) of mine being there.
   3. Pick positions for probe/mark according to calculated frequency.
 
-  Optimization step (need to do performance benchmarks to prove that it is effective):
+  Optimization step:
   On subsequent calls, once mine is marked it is subtracted from intel and explicitly excised
   from probe positions. Latter is required since intel has "hole" right under mine so we need
-  to handle a special case.
+  to handle a special case. (Need to do performance benchmarks to prove that it subtraction is effective).
  -}
 choosePositions :: Algorithm
-choosePositions fieldSize field intel = (probePositions, foundMines)
+choosePositions fieldSize field intel =
+  choosePositionsByFrequency (edgeRelations fieldSize field) fieldSize field intel
+
+{- Alternative version of choosePositions.
+
+  Intention was to avoid full analysis if there are safe probe positions.
+  In fact this version is slower and may accumulate too big chunks of analysis for later.
+  However it produces curious behavior.
+-}
+choosePositions2 :: Algorithm
+choosePositions2 fieldSize field intel =
+  if not (null safeProbes)
+    then (safeProbes, [])
+    else choosePositionsByFrequency edge fieldSize field intel
+  where
+    edge = edgeRelations fieldSize field
+    safeProbes = findSafeProbes edge intel
+
+choosePositionsByFrequency :: [CellPair] -> Size -> Field -> Intel -> ([Pos], [Pos])
+choosePositionsByFrequency edge fieldSize field intel =
+  (probePositions, foundMines)
   where
     disarmed = filterField CDisarmed field
-    freqs = rankProbePositions fieldSize field (subtractMines disarmed intel)
+    edge = edgeRelations fieldSize field
+    freqs = rankProbePositions edge (subtractMines disarmed intel)
     discardDisarmed = filter (\(pos, _freq) -> not (S.member pos disarmed))
     probePositions = pickProbePoss field (discardDisarmed freqs)
     foundMines = fmap fst $ filter ((1==) . snd) freqs
-
 
 {- Pick position(s) to probe given mine frequencies.
    Precondition: Freqs should be ordered by increasing frequency.
@@ -70,39 +91,30 @@ pickProbePoss field freqs = case pick of
       (filterField CUnknown field)
       (S.fromList (fmap fst freqs))
 
+edgeRelations :: Size -> Field -> [CellPair]
+edgeRelations fieldSize field = discoverableMinesMatrix
+    (visibleIntelMatrix intelRel field)
+    field
+  where intelRel = intelMatrix fieldSize (enumPositions fieldSize)
+
 -- Return "mine frequencies" [(mine-position, probability-of-mine-there)] oredered by increasing probability
-rankProbePositions :: Size -> Field -> Intel -> [(Pos, Float)]
-rankProbePositions fieldSize field intel =
-  L.concat [
-    map (\x -> (x, 0)) safeProbes,
-    freqs]
+rankProbePositions :: [CellPair] -> Intel -> [(Pos, Float)]
+rankProbePositions edge intel =
+    L.sortBy (\(_p1, f1) (_p2, f2) -> compare f1 f2)
+    $ (M.toList
+       $ M.map (\cs -> ((fromIntegral (sum cs))::Float) / (fromIntegral (L.length cs)))
+           posOptions)
   where
-    intelRel = intelMatrix fieldSize (enumPositions fieldSize)
-    edgeRelations = discoverableMinesMatrix
-      (visibleIntelMatrix intelRel field)
-      field -- "Edge" between explored and unknown cells
-
-    {- Intention was to avoid full analysis if there are safe probe positions.
-        Effectvely it woul favor safe areas sweeping to mines marking which is postponed.
-        I hoped that it would make more progress in hard cases - it seems that's not actually true.
-    -}
-    safeProbes = [] -- safeProbes shortct is disabled for now as it unnecessarily complicates code.
-    -- safeProbes = findSafeProbes edgeRelations intel
-
-    combos = consistentCombinations edgeRelations intel
+    combos = consistentCombinations edge intel
     -- Possible values (mine/free) of positions
     posOptions = Mm.toMap $ Mm.fromList $ fmap (\(p,t) -> (p, boolTo01 t))
                  $ L.concatMap M.toList combos
-    freqs = L.sortBy (\(_p1, f1) (_p2, f2) -> compare f1 f2)
-            $ (M.toList
-              $ M.map (\cs -> ((fromIntegral (sum cs))::Float) / (fromIntegral (L.length cs)))
-               posOptions)
 
--- Optimization shortcut: Pick probe positions around zero intel cells and skippin full combination analysis.
+-- Optimization shortcut: Pick probe positions around zero intel cells to skip full combination analysis.
 findSafeProbes :: [CellPair] -> Intel -> [Pos]
-findSafeProbes edgeRelations intel = S.toList $ S.fromList $ map fst $ filter
+findSafeProbes edge intel = {-S.toList $ S.fromList $-} map fst $ filter
     (\(_, n) -> not $ S.member n dangerIntelPoss)
-    edgeRelations
+    edge
   where dangerIntelPoss = M.keysSet $ M.filter (/=0) intel
 
 -- Ignore already found mines in intel
@@ -227,12 +239,12 @@ constrainedCombos intel linkedMinePoss currentLayout (testPos : tps) =
  are not combined into pacements for [a,b,c,d].
 -}
 consistentCombinations :: [CellPair] -> Intel -> [MineLayout]
-consistentCombinations edgeRelations intel =
+consistentCombinations edge intel =
   concatMap (\ns -> constrainedCombos intel linkedMinePoss M.empty (S.toList ns))
             (connectedSets neighbourToMine linkedNeighbours)
   where
-    neighbourToMine = groupBySecond $ edgeRelations
-    mineToNeighbour = groupByFirst $ edgeRelations
+    neighbourToMine = groupBySecond $ edge
+    mineToNeighbour = groupByFirst $ edge
     linkedMinePoss = (flip Mm.lookup neighbourToMine)
     -- Neighbours that share common mine places with this one
     linkedNeighbours p = S.fromList $ concatMap

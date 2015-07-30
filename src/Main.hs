@@ -97,10 +97,9 @@ render fieldSize mines probes field = do
 --     showDebugInfo fieldSize mines field
     return ()
 
-step :: Size -> Mines -> Field -> IO ()
-step fieldSize mines field =
-  let (probePositions, newField) =
-        gameStep fieldSize mines field choosePositions
+step :: Size -> Mines -> Field -> Algorithm -> IO ()
+step fieldSize mines field algorithm =
+  let (probePositions, newField) = gameStep fieldSize mines field algorithm
       showFinalStatus message = showStatus fieldSize message
       render0 = render fieldSize mines probePositions
   in do
@@ -118,21 +117,34 @@ step fieldSize mines field =
             then showFinalStatus "No probe position, disqualified."
             else do
                 render0 f
-                step fieldSize mines f
+                step fieldSize mines f algorithm
 
-run :: Size -> Int -> IO ()
-run fieldSize mineCount = do
+run :: Size -> Int -> Algorithm -> IO ()
+run fieldSize mineCount algorithm = do
     putStrLn $ "size=" ++ show fieldSize
     putStrLn $ "mines=" ++ show mineCount
     mines <- genMines fieldSize mineCount -- 1300 and more usually produces stack overflow exception
     clearScreen
     let field = genField fieldSize
     renderBoard field mines []
-    step fieldSize mines field
+    step fieldSize mines field algorithm
+
+data AlgorithmSwitch = Default | Fancy
+ deriving (Read)
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
-    [cols, rows, minesCount] -> run (read cols, read rows) (read minesCount)
-    _ -> run (100, 40) 600
+    [cols, rows, minesCount, alg] ->
+      runWithArgs cols rows minesCount
+        (case (read alg) of
+           Fancy -> choosePositions2
+           _ -> defaultAlgorithm)
+    [cols, rows, minesCount] ->
+      runWithArgs cols rows minesCount defaultAlgorithm
+    _ ->
+      run (100, 40) 600 defaultAlgorithm
+  where
+    runWithArgs cols rows minesCount = run (read cols, read rows) (read minesCount)
+    defaultAlgorithm = choosePositions
