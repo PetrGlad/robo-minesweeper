@@ -40,6 +40,10 @@ Add "Fancy" to run with alternative algorithm
 This algorithm prefers to sweep empty areas first as does original game automatically.
 Due to smaller sweeps this algorithm runs slower because requires more rendering.
 
+Also as this algorithm postpones hard work for later it may accrue too big chains for real analysis. 
+This means that it often hangs on moderately dense fields. Try, for example, `robominer 164 64 1300`
+which in most cases processed well by Default algorithm but overloads Fancy.   
+
 You may store output of robominer into a file and later output it to ANSI-compatible
 terminal for replay. For example:
 ```
