@@ -9,6 +9,10 @@ The algorithm:
  1. Enumerate all mine layouts that are consistent with intel. 
  2. Find probabilities of a mine in an unknown position. 
  3. Probe positions with least probability of mine in them.
+ 
+Number of mines is not provided to algorithm (original game does show total number of mines). 
+Tactics that relay on this number might be useful in endspiel - those are not implemented
+(see also TODO comments in Algorithm.hs).
 
 To build:
 ```
