@@ -37,6 +37,16 @@ Add "Fancy" to run with alternative algorithm
 ```
   dist/build/robominer/robominer 128 64 1000 Fancy
 ```    
+This algorithm prefers to sweep empty areas first as does original game automatically.
+Due to smaller sweeps this algorithm runs slower because requires more rendering.
+
+You may store output of robominer into a file and later output it to ANSI-compatible
+terminal for replay. For example:
+```
+  time dist/build/robominer/robominer +RTS -N2 -K200m -RTS 164 64 1000  Fancy >robo.log
+  cat robo.log
+```
+(This also shows that ~50-70% of running time is spent redrawing board.)
 
 TODO
 ----
