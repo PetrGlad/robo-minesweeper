@@ -29,7 +29,7 @@ or specify rows, columns, mines count:
 ```    
 In case of dense fields try:
 ```
-  dist/build/robominer/robominer +RTS -N2 -K1g -RTS 128 64 1300
+  dist/build/robominer/robominer +RTS -N2 -K256m -RTS 128 64 1300
 ```    
 (It still may take forever to complete but at least it does not fail with an exception)
 
