@@ -1,8 +1,7 @@
 robo-minesweeper
 ================
 
-Program that automatically plays Minesweeper game
-(see https://en.wikipedia.org/wiki/Minesweeper_(video_game)).
+Program that automatically plays [Minesweeper game](https://en.wikipedia.org/wiki/Minesweeper_(video_game)).
 
 In ambiguous situations algorithm attempts to minimize risk.
 The algorithm:
@@ -44,6 +43,10 @@ Also as this algorithm postpones hard work for later it may accrue too big chain
 This means that it often hangs on moderately dense fields. Try, for example, `robominer 164 64 1300`
 which in most cases processed well by Default algorithm but overloads Fancy.   
 
+Hints
+-----
+
+### Game replay
 You may store output of robominer into a file and later output it to ANSI-compatible
 terminal for replay. For example:
 ```
@@ -52,17 +55,15 @@ terminal for replay. For example:
 ```
 (This also shows that ~50-70% of running time is spent redrawing board.)
 
+### Build
+Init cabal sandbox to avoid libraries version conflicts:
+  cabal sandbox init
+  cabal install --only-dependencies
+
 TODO
 ----
 
 * Implement remaining mines count heuristics (stepping randomly into unexplored area) 
 * Cleanup/streamline code
 * Profile to find out why positions enumeration takes very long time sometimes (in hope it can be optimized).
-  
-Hints
------
-  
-Init sandbox:  
-  cabal sandbox init  
-  cabal install --only-dependencies   
   
