@@ -26,9 +26,9 @@ or specify rows, columns, mines count:
 ```
     dist/build/robominer/robominer 128 64 1200
 ```    
-In case of dense fields try:
+In case of dense fields try (set -N parameter to number of cores or threads in your processor):
 ```
-  dist/build/robominer/robominer +RTS -N2 -K256m -RTS 128 64 1300
+  dist/build/robominer/robominer +RTS -N4 -K256m -RTS 128 64 1500
 ```    
 (It still may take forever to complete but at least it does not fail with an exception)
 
@@ -38,10 +38,23 @@ Add "Fancy" to run with alternative algorithm
 ```    
 This algorithm prefers to sweep empty areas first as does original game automatically.
 Due to smaller sweeps this algorithm runs slower because requires more rendering.
+On sparse fields it would be as fast as the default one.
 
 Also as this algorithm postpones hard work for later it may accrue too big chains for real analysis. 
 This means that it often hangs on moderately dense fields. Try, for example, `robominer 164 64 1300`
 which in most cases processed well by Default algorithm but overloads Fancy.   
+
+Results
+-------
+
+It certainly plays minesweeper better (and a lot faster) than me what I wanted to achieve initially.
+Winrate with usual settings:
+
+* Beginner: 8 × 8 field with 10 mines (density 0.156) - 56%
+* Intermediate: 16 × 16 field with 40 mines (density 0.156) - 55%
+* Expert: 30 × 16 field with 99 mines (density 0.206) - 32%
+
+See 'scripts' subdirectory for scripts that calculate winrate.
 
 Hints
 -----
