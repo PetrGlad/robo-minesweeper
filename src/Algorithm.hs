@@ -52,14 +52,18 @@ choosePositions2 fieldSize field intel =
     edge = edgeRelations fieldSize field
     safeProbes = findSafeProbes edge intel
 
+filterFst :: (a -> Bool) -> [(a, b)] -> [(a, b)]
+filterFst pred = filter (\(x, _) -> pred x)
+
 choosePositionsByFrequency :: [CellPair] -> Size -> Field -> Intel -> ([Pos], [Pos])
 choosePositionsByFrequency edge fieldSize field intel =
   (probePositions, foundMines)
   where
     disarmed = filterField CDisarmed field
-    freqs = rankProbePositions edge (subtractMines disarmed intel)
-    discardDisarmed = filter (\(pos, _freq) -> not (S.member pos disarmed))
-    probePositions = pickProbePoss field (discardDisarmed freqs)
+    isNotDisarmed p = not $ S.member p disarmed
+    -- Filtering edge splits connected sets into smaller pieces which reduces number of combinations to consider
+    freqs = rankProbePositions (filterFst isNotDisarmed edge) (subtractMines disarmed intel)
+    probePositions = pickProbePoss field (filterFst isNotDisarmed freqs)
     foundMines = fmap fst $ filter ((1==) . snd) freqs
 
 {- Pick position(s) to probe given mine frequencies.
