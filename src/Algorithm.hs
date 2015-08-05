@@ -17,7 +17,7 @@ import qualified Data.Tuple as Tu
 -- import Control.Parallel
 import Control.Parallel.Strategies (parMap, rseq)
 
--- import Debug.Trace
+import Debug.Trace
 
 notShorterThan :: Int -> [a] -> Bool
 notShorterThan n l = n == length (take n l)
@@ -57,7 +57,6 @@ choosePositionsByFrequency edge fieldSize field intel =
   (probePositions, foundMines)
   where
     disarmed = filterField CDisarmed field
-    edge = edgeRelations fieldSize field
     freqs = rankProbePositions edge (subtractMines disarmed intel)
     discardDisarmed = filter (\(pos, _freq) -> not (S.member pos disarmed))
     probePositions = pickProbePoss field (discardDisarmed freqs)
