@@ -14,7 +14,7 @@ executable robominer
   default-language: Haskell2010
   ghc-options: -Wall -O2 -threaded -rtsopts
   build-depends:
-    base,
+    base >= 4.6,
     random,
     MonadRandom,
     ansi-terminal,
@@ -25,8 +25,8 @@ executable robominer
 -- https://hackage.haskell.org/package/GHood
 -- https://hackage.haskell.org/package/hood-0.2.1/docs/Debug-Hood-Observe.html
 -- https://hackage.haskell.org/package/GHood
---     hood
---    text
+--  hood
+--  text
     QuickCheck
 -- https://hackage.haskell.org/package/HTF-0.13.0.0/docs/Test-Framework-Tutorial.html
 

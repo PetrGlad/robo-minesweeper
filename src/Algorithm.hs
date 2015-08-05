@@ -19,6 +19,8 @@ import Control.Parallel.Strategies (parMap, rseq)
 
 import Debug.Trace
 
+type CellPair = (Pos, Pos)
+
 notShorterThan :: Int -> [a] -> Bool
 notShorterThan n l = n == length (take n l)
 
@@ -133,8 +135,6 @@ subtractMines mines intl = foldl
                          Just c -> Just $ c - 1)
     decErr = error "Wrong disarmed mine (or intl is inconsistent)"
 
-type CellPair = (Pos, Pos)
-
 inBoard :: Size -> Pos -> Bool
 inBoard (w, h) (x,y) = (inRange 0 w x) && (inRange 0 h y)
 
@@ -149,6 +149,9 @@ intelMatrix s ps = concatMap (\p -> fmap (\n -> (p, n))
 visibleIntelMatrix :: [CellPair] -> Field -> [CellPair]
 visibleIntelMatrix pairs field = filter ((isFreeCell field) . snd) pairs
 
+{- Return edge relatios where mines can be discovered.
+   First position in each pair refers to (possible) mine position, second one to discovered/free position
+-}
 discoverableMinesMatrix :: [CellPair] -> Field -> [CellPair]
 discoverableMinesMatrix pairs field = filter (not . (isFreeCell field) . fst) pairs
 
