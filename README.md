@@ -3,6 +3,8 @@ robo-minesweeper
 
 Program that automatically plays [Minesweeper game](https://en.wikipedia.org/wiki/Minesweeper_(video_game)).
 
+![robo-menesweeper in action](doc/screenshot.jpg)
+
 In ambiguous situations algorithm attempts to minimize risk.
 The algorithm:
  1. Enumerate all mine layouts that are consistent with intel. 
