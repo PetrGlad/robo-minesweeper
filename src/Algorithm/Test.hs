@@ -61,7 +61,7 @@ data GameResult =
   deriving (Show, Eq)
 
 -- Game step that does not do IO (in contrast to Main.step)
-headlessStep :: Size -> Mines -> Field -> (Field, GameResult)
+headlessStep :: Size -> Places -> Field -> (Field, GameResult)
 headlessStep fieldSize mines field =
   let (probePositions, newField) = gameStep fieldSize mines field choosePositions
   in case newField of

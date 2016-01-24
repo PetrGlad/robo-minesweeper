@@ -33,7 +33,7 @@ genMine (maxX, maxY) = do
     y <- CMR.getRandomR (0, maxY - 1)
     return (x, y)
 
-genMines :: Size -> Int -> IO Mines
+genMines :: Size -> Int -> IO Places
 genMines size cnt = do
       mines <- CMR.evalRandIO $ Cm.replicateM cnt $ genMine size
       return $ S.fromList mines
@@ -46,7 +46,7 @@ showStatus fieldSize message = do
     moveCursorBelow fieldSize
     putStrLn message
 
-renderBoard :: Field -> Mines -> [Pos] -> IO ()
+renderBoard :: Field -> Places -> [Pos] -> IO ()
 renderBoard field mines probes = do
   setCursorPosition 0 0
   Board.renderIO (Board.cellsRender cellFn board)
@@ -72,7 +72,7 @@ renderBoard field mines probes = do
         Board.fromPositions (Board.BCell CMine) mines,
         Board.fromField $ M.filter (==CDisarmed) field]
 
-showDebugInfo :: Size -> Mines -> Field -> IO ()
+showDebugInfo :: Size -> Places -> Field -> IO ()
 showDebugInfo fieldSize mines field =
   let intel = visibleIntel field mines
   in do
@@ -90,14 +90,14 @@ showDebugInfo fieldSize mines field =
 --     _ <-getChar
     return ()
 
-render :: Size -> Mines -> [Pos] -> Field -> IO ()
+render :: Size -> Places -> [Pos] -> Field -> IO ()
 render fieldSize mines probes field = do
 --    clearScreen
     renderBoard field mines probes
 --     showDebugInfo fieldSize mines field
     return ()
 
-step :: Size -> Mines -> Field -> Algorithm -> IO ()
+step :: Size -> Places -> Field -> Algorithm -> IO ()
 step fieldSize mines field algorithm =
   let (probePositions, newField) = gameStep fieldSize mines field algorithm
       showFinalStatus message = showStatus fieldSize message

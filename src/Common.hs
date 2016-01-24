@@ -11,7 +11,7 @@ import qualified Data.Set as S
 type Pos = (Int, Int)
 type Size = Pos
 type PosDelta = Pos
-type Mines = Set Pos
+type Places = Set Pos
 type Layer a = Map Pos a
 type Intel = Layer Int
 data Cell = CMine
@@ -54,7 +54,7 @@ isFreeCell field pos = (M.lookup pos field) == (Just CFree)
 filterLayer :: Layer a -> Field -> Layer a
 filterLayer intel field = M.filterWithKey (\pos _ -> isFreeCell field pos) intel
 
-genIntel :: Mines -> Intel
+genIntel :: Places -> Intel
 genIntel mines = foldl updateNeighbours M.empty (S.toList mines)
   where updateNeighbours intel pos = foldl (\intl nPos -> M.alter updateCount nPos intl)
                                            intel (nearPositions pos)
