@@ -46,16 +46,15 @@ showStatus fieldSize message = do
     moveCursorBelow fieldSize
     putStrLn message
 
-renderBoard :: Field -> Places -> [Pos] -> IO ()
+renderBoard :: Field -> Places -> Places -> IO ()
 renderBoard field mines probes = do
   setCursorPosition 0 0
   Board.renderIO (Board.cellsRender cellFn board)
   where
-    probeSet = S.fromList probes
     cellFn pos bc = (sgr, str)
       where
         sgr = case bc of
-          _ | S.member pos probeSet ->
+          _ | S.member pos probes ->
                                     [SetConsoleIntensity BoldIntensity,
                                      SetColor Foreground Vivid Red]
           Just (BCell CMine) ->     [SetConsoleIntensity BoldIntensity,
@@ -90,7 +89,7 @@ showDebugInfo fieldSize mines field =
 --     _ <-getChar
     return ()
 
-render :: Size -> Places -> [Pos] -> Field -> IO ()
+render :: Size -> Places -> Places -> Field -> IO ()
 render fieldSize mines probes field = do
 --    clearScreen
     renderBoard field mines probes
@@ -101,7 +100,7 @@ step :: Size -> Places -> Field -> Algorithm -> IO ()
 step fieldSize mines field algorithm =
   let (probePositions, newField) = gameStep fieldSize mines field algorithm
       showFinalStatus message = showStatus fieldSize message
-      render0 = render fieldSize mines probePositions
+      render0 = render fieldSize mines (S.fromList probePositions)
   in do
     -- CC.threadDelay 300000
     case newField of
@@ -126,7 +125,7 @@ run fieldSize mineCount algorithm = do
     mines <- genMines fieldSize mineCount -- 1300 and more usually produces stack overflow exception
     clearScreen
     let field = genField fieldSize
-    renderBoard field mines []
+    renderBoard field mines S.empty
     step fieldSize mines field algorithm
 
 data AlgorithmSwitch = Default | Fancy
