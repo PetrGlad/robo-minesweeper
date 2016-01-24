@@ -17,7 +17,7 @@ import qualified Data.Tuple as Tu
 -- import Control.Parallel
 import Control.Parallel.Strategies (parMap, rseq)
 
-import Debug.Trace
+-- import Debug.Trace
 
 type CellPair = (Pos, Pos)
 
@@ -55,7 +55,7 @@ choosePositions2 fieldSize field intel =
     safeProbes = findSafeProbes edge intel
 
 filterFst :: (a -> Bool) -> [(a, b)] -> [(a, b)]
-filterFst pred = filter (\(x, _) -> pred x)
+filterFst p = filter (\(x, _) -> p x)
 
 choosePositionsByFrequency :: [CellPair] -> Size -> Field -> Intel -> ([Pos], [Pos])
 choosePositionsByFrequency edge fieldSize field intel =

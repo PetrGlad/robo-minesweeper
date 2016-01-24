@@ -4,7 +4,6 @@ import Common
 
 import qualified Data.Map.Strict as M
 import Data.Map.Strict (Map)
-import qualified Data.Set as S
 import Data.Set (Set)
 
 import System.Console.ANSI
@@ -57,25 +56,30 @@ renderColored colorSetup action = do
 
 type CellRender = ([SGR], String)
 
--- Fancy render board to ANSI console
-cellsRender :: (Pos -> Maybe BoardCell -> ([SGR], String)) -> Board -> [[CellRender]]
+-- ------------------------------------
+-- Rows based renderer
+
+-- Fancy render board for ANSI console
+cellsRender :: (Pos -> Maybe BoardCell -> CellRender) -> Board -> [[CellRender]]
 cellsRender cellFn layer = map mapRow [0..(snd sz)]
   where
     sz = layerSize layer
     mapRow r = map (getCell r) [0..(fst sz)]
     getCell row col = cellFn (col, row) (M.lookup (col, row) layer)
 
+-- Send rendered board to ANSI console
 renderIO :: [[CellRender]] -> IO ()
-renderIO cells = do
-  mapM renderRow cells
-  setSGR [Reset]
+renderIO cells = mapM renderRow cells
+                 >> setSGR [Reset]
   where
-    renderRow r = do
-      mapM renderCell r
-      putStrLn ""
-    renderCell (color, str) = do
+    renderRow r = mapM renderChar r
+                  >> putStrLn ""
+    renderChar (color, str) = do
       setSGR color
-      (putStr str)
+      putStr str
+
+-- ------------------------------------
+-- Positions based renderer
 
 renderCell :: Show a => Pos -> a -> IO ()
 renderCell (x, y) c = do
