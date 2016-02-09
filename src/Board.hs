@@ -87,5 +87,5 @@ renderCell (x, y) c = do
                putStr (show c)
 
 -- Set-cursor-position render to ANSI console
-renderLayer :: Show a => Map Pos a -> IO ()
+renderLayer :: Show a => Layer a -> IO ()
 renderLayer cells = mapM_ (uncurry renderCell) (M.toList cells)
